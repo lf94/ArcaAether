@@ -1,0 +1,120 @@
+parametric
+  a_width :: slider [0.1, 1000] = 50;
+  b_length :: slider [0.1, 1000] = 200;
+  c_height :: slider [0.1, 1000] = 100;
+
+  d_wall_thickness :: slider [0.1, 10] = 2.0;
+  e_foil_gap :: slider [0.1, 10] = 2.0;
+
+  f_mount_width :: slider [0.1, 1000] = 20;
+  g_hinge_diameter :: slider [0.1, 100] = 15;
+  h_hinge_male_length :: slider [0.1, 100] = 25;
+in
+let
+  epsilon = 0.0001;
+
+  d_outer = [a_width, b_length, c_height];
+  d_outer_wall_negative = d_outer - [d_wall_thickness * 2, d_wall_thickness * 2, 0];
+  d_inner = d_outer_wall_negative - [e_foil_gap * 2, e_foil_gap * 2, d_wall_thickness + e_foil_gap];
+  d_inner_wall_negative = d_inner - [d_wall_thickness * 2, d_wall_thickness * 2, 0];
+
+  p_outer_wall_negative = [0, 0, d_wall_thickness];
+  p_inner = p_outer_wall_negative + [0, 0, 0];
+  p_inner_wall_negative = p_inner + [0, 0, d_wall_thickness];
+
+  hook_holes = union [
+    box [f_mount_width / (cos 45*deg), 15, 15]
+    >> move [0, -b_length / 3, 0],
+    box [f_mount_width / (cos 45*deg), 15, 15]
+    >> move [0, b_length / 3, 0],
+  ]
+  >> rotate { angle: 45*deg, axis: Y_axis };
+
+  p_hook_holes = [0, 0, c_height / 4];
+
+  containers = box d_outer
+  >> into difference [box d_outer_wall_negative >> move p_outer_wall_negative]
+  //>> into union [box d_inner >> move p_inner]
+  >> into difference [box d_inner_wall_negative >> move p_inner_wall_negative];
+
+  d_mount = [f_mount_width, b_length, c_height];
+  p_mount = [(d_outer.[0] +  d_mount.[0]) / 2, 0, 0];
+
+  clearance = 0.2; // For print in place - change depending on print settings.
+  d_hinge_wall_thickness = 1.2;
+  d_hinge_outer = { d: g_hinge_diameter, h: b_length };
+  d_hinge_outer_wall_negative = {
+    d: g_hinge_diameter - (d_hinge_wall_thickness * 2),
+    h: inf
+  };
+  d_hinge_male_space = { d: g_hinge_diameter + 2, h: h_hinge_male_length };
+
+  hinge_female = cylinder d_hinge_outer
+  >> into union [
+    box [d_hinge_outer.d, d_hinge_outer.d / 2, d_hinge_outer.h]
+    >> move [0, d_hinge_outer.d / -4, 0]
+  ]
+  >> into difference [ cylinder d_hinge_outer_wall_negative ]
+  >> into difference [ cylinder d_hinge_male_space ]
+  >> rotate { angle: 90*deg, axis: X_axis };
+
+  p_hinge_female = [0, 0, (d_outer.[2] + g_hinge_diameter) / 2];
+
+  mount = box d_mount
+  >> into difference [hook_holes >> move p_hook_holes]
+  >> into union [hinge_female >> move p_hinge_female];
+
+  d_hinge_male = { d: g_hinge_diameter, h: h_hinge_male_length - (clearance * 2) };
+  d_hinge_male_inner = {
+    d: d_hinge_outer_wall_negative.d - (clearance * 2),
+    h: d_hinge_outer.h / 2
+  };
+  d_hinge_cap_space = (f_mount_width - g_hinge_diameter) / 2;
+  d_hinge_cap_connector = [
+    d_hinge_cap_space + g_hinge_diameter,
+    h_hinge_male_length - (clearance * 2),
+    g_hinge_diameter
+  ];
+  hinge_male = cylinder d_hinge_male
+  >> into union [ cylinder d_hinge_male_inner ]
+  >> rotate { angle: 90*deg, axis: X_axis }
+  >> move [d_hinge_cap_space, 0, 0]
+  >> into union [ box d_hinge_cap_connector >> move [
+      d_hinge_cap_space - ((d_hinge_cap_space + g_hinge_diameter) / 2),
+      0,
+      0
+    ]
+  ];
+  p_hinge_male = [(a_width + g_hinge_diameter) / 2, 0, 0];
+
+  d_cap = [a_width, b_length, g_hinge_diameter];
+  d_cap_foil = [a_width - d_wall_thickness, inf, e_foil_gap];
+  cap = box d_cap
+  >> into difference [box d_cap_foil >> move [-d_wall_thickness, 0, 0]]
+  >> into union [ hinge_male >> move p_hinge_male ];
+  p_cap = [0, 0, (c_height + g_hinge_diameter) / 2];
+
+  o_cap_cover = 1;
+  d_cap_cover_wall_negative = d_cap_foil
+    - [0, d_wall_thickness * 2, 0] ;
+  cap_cover = box (d_cap_foil - o_cap_cover - [0, 0, clearance * 4])
+  >> offset o_cap_cover
+  >> into difference [
+    box [d_cap_cover_wall_negative.[0], b_length - (d_wall_thickness * 2), inf]
+    >> move [d_wall_thickness, 0, 0]
+  ];
+
+  output = nothing
+  >> into union [containers]
+  >> into union [mount >> move p_mount]
+  >> into union [cap
+    >> rotate { angle: 90*deg, axis: Y_axis }
+    >> move (p_cap + [
+      (a_width + f_mount_width) / 2,
+      0,
+      (a_width + f_mount_width) / 2
+    ]
+  )]
+  //>> into union [cap_cover >> move (p_cap - [d_wall_thickness, 0, 0])];
+in
+output //>> into difference [box [inf, b_length, inf] >> move [0, b_length - 44, 0] >> rotate { angle: -32*deg, axis: X_axis }]
