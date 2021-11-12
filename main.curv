@@ -1,17 +1,17 @@
 parametric
   a_width :: slider [0.1, 1000] = 50;
-  b_length :: slider [0.1, 1000] = 200;
-  c_height :: slider [0.1, 1000] = 100;
+  b_length :: slider [0.1, 1000] = 156;
+  c_height :: slider [0.1, 1000] = 80;
 
   d_wall_thickness :: slider [0.1, 10] = 2.0;
   e_foil_gap :: slider [0.1, 10] = 2.0;
 
-  f_mount_width :: slider [0.1, 1000] = 20;
+  f_mount_width :: slider [0.1, 1000] = 16;
   g_hinge_diameter :: slider [0.1, 100] = 15;
   h_hinge_male_length :: slider [0.1, 100] = 25;
 in
 let
-  epsilon = 0.0001;
+  epsilon = 1;
 
   d_outer = [a_width, b_length, c_height];
   d_outer_wall_negative = d_outer - [d_wall_thickness * 2, d_wall_thickness * 2, 0];
@@ -30,24 +30,37 @@ let
   ]
   >> rotate { angle: 45*deg, axis: Y_axis };
 
-  p_hook_holes = [0, 0, c_height / 4];
+  p_hook_holes = [0, 0, c_height / 5];
 
-  containers = box d_outer
-  >> into difference [box d_outer_wall_negative >> move p_outer_wall_negative]
-  //>> into union [box d_inner >> move p_inner]
-  >> into difference [box d_inner_wall_negative >> move p_inner_wall_negative];
+  sbox [w, l, h] = let
+    d = 30;
+  in
+    union [
+      box [w - d, l, h],
+      box [w, l - d, h],
+      cylinder { d: d, h: h } >> move [(w - d) / -2, (l - d) / 2, 0],
+      cylinder { d: d, h: h } >> move [(w - d) / -2, (l - d) / -2, 0],
+      box [d, d, h] >> move [(w - d) / 2, (l - d) / 2, 0],
+      box [d, d, h] >> move [(w - d) / 2, (l - d) / -2, 0],
+    ];
+
+  containers = sbox d_outer
+  >> into difference [sbox d_outer_wall_negative >> move p_outer_wall_negative]
+  //>> into union [sbox d_inner >> move p_inner]
+  >> into difference [sbox d_inner_wall_negative >> move p_inner_wall_negative];
 
   d_mount = [f_mount_width, b_length, c_height];
   p_mount = [(d_outer.[0] +  d_mount.[0]) / 2, 0, 0];
 
-  clearance = 0.2; // For print in place - change depending on print settings.
+  clearance = 0.8; // For print in place - change depending on print settings.
   d_hinge_wall_thickness = 1.2;
   d_hinge_outer = { d: g_hinge_diameter, h: b_length };
   d_hinge_outer_wall_negative = {
     d: g_hinge_diameter - (d_hinge_wall_thickness * 2),
     h: inf
   };
-  d_hinge_male_space = { d: g_hinge_diameter + 2, h: h_hinge_male_length };
+  d_hinge_male_space = { d: g_hinge_diameter + 2, h: h_hinge_male_length + clearance * 2 };
+  d_hinge_female_cutout = [g_hinge_diameter + epsilon, g_hinge_diameter + epsilon, (b_length - d_hinge_male_inner.h) / 2 + epsilon]; 
 
   hinge_female = cylinder d_hinge_outer
   >> into union [
@@ -56,6 +69,14 @@ let
   ]
   >> into difference [ cylinder d_hinge_outer_wall_negative ]
   >> into difference [ cylinder d_hinge_male_space ]
+  >> into difference [
+    box d_hinge_female_cutout
+    >> move [0, 0, ((b_length - d_hinge_female_cutout.[2]) / 2) + epsilon]
+  ]
+  >> into difference [
+    box d_hinge_female_cutout
+    >> move [0, 0, ((b_length - d_hinge_female_cutout.[2]) / -2) - epsilon]
+  ]
   >> rotate { angle: 90*deg, axis: X_axis };
 
   p_hinge_female = [0, 0, (d_outer.[2] + g_hinge_diameter) / 2];
@@ -89,18 +110,18 @@ let
 
   d_cap = [a_width, b_length, g_hinge_diameter];
   d_cap_foil = [a_width - d_wall_thickness, inf, e_foil_gap];
-  cap = box d_cap
-  >> into difference [box d_cap_foil >> move [-d_wall_thickness, 0, 0]]
+  cap = sbox d_cap
+  >> into difference [sbox d_cap_foil >> move [-d_wall_thickness, 0, 0]]
   >> into union [ hinge_male >> move p_hinge_male ];
   p_cap = [0, 0, (c_height + g_hinge_diameter) / 2];
 
   o_cap_cover = 1;
   d_cap_cover_wall_negative = d_cap_foil
     - [0, d_wall_thickness * 2, 0] ;
-  cap_cover = box (d_cap_foil - o_cap_cover - [0, 0, clearance * 4])
+  cap_cover = sbox (d_cap_foil - o_cap_cover - [0, 0, clearance * 4])
   >> offset o_cap_cover
   >> into difference [
-    box [d_cap_cover_wall_negative.[0], b_length - (d_wall_thickness * 2), inf]
+    sbox [d_cap_cover_wall_negative.[0], b_length - (d_wall_thickness * 2), inf]
     >> move [d_wall_thickness, 0, 0]
   ];
 
