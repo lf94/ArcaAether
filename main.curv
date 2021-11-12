@@ -3,7 +3,7 @@ parametric
   b_length :: slider [0.1, 1000] = 156;
   c_height :: slider [0.1, 1000] = 80;
 
-  d_wall_thickness :: slider [0.1, 10] = 2.0;
+  d_wall_thickness :: slider [0.1, 10] = 1.2;
   e_foil_gap :: slider [0.1, 10] = 2.0;
 
   f_mount_width :: slider [0.1, 1000] = 16;
@@ -13,7 +13,7 @@ in
 let
   epsilon = 1;
 
-  d_outer = [a_width, b_length, c_height];
+  d_outer = [a_width + (d_wall_thickness * 4) + (e_foil_gap * 2), b_length + (d_wall_thickness * 4) + (e_foil_gap * 2), c_height];
   d_outer_wall_negative = d_outer - [d_wall_thickness * 2, d_wall_thickness * 2, 0];
   d_inner = d_outer_wall_negative - [e_foil_gap * 2, e_foil_gap * 2, d_wall_thickness + e_foil_gap];
   d_inner_wall_negative = d_inner - [d_wall_thickness * 2, d_wall_thickness * 2, 0];
@@ -44,9 +44,9 @@ let
       box [d, d, h] >> move [(w - d) / 2, (l - d) / -2, 0],
     ];
 
-  containers = sbox d_outer
+  containers = nothing //sbox d_outer
   >> into difference [sbox d_outer_wall_negative >> move p_outer_wall_negative]
-  //>> into union [sbox d_inner >> move p_inner]
+  >> into union [sbox d_inner >> move p_inner]
   >> into difference [sbox d_inner_wall_negative >> move p_inner_wall_negative];
 
   d_mount = [f_mount_width, b_length, c_height];
@@ -126,16 +126,16 @@ let
   ];
 
   output = nothing
-  >> into union [containers]
-  >> into union [mount >> move p_mount]
-  >> into union [cap
-    >> rotate { angle: 90*deg, axis: Y_axis }
-    >> move (p_cap + [
-      (a_width + f_mount_width) / 2,
-      0,
-      (a_width + f_mount_width) / 2
-    ]
-  )]
+  >> into union [containers];
+ // >> into union [mount >> move p_mount]
+ // >> into union [cap
+ //   >> rotate { angle: 90*deg, axis: Y_axis }
+ //   >> move (p_cap + [
+ //     (a_width + f_mount_width) / 2,
+ //     0,
+ //     (a_width + f_mount_width) / 2
+ //   ]
+ // )]
   //>> into union [cap_cover >> move (p_cap - [d_wall_thickness, 0, 0])];
 in
 output //>> into difference [box [inf, b_length, inf] >> move [0, b_length - 44, 0] >> rotate { angle: -32*deg, axis: X_axis }]
